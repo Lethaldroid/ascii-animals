@@ -109,11 +109,11 @@ svg { display: block; }
   max-width: max(240px, calc(100vw - 300px));
   padding: 4px;
   overflow-x: auto;
-  scrollbar-width: none;
+  scrollbar-width: thin;
+  scrollbar-color: var(--muted) transparent;
   border-radius: 999px;
   --blur: 5px;
 }
-.choices::-webkit-scrollbar { display: none; }
 .choices button {
   position: relative;
   z-index: 1;
@@ -139,7 +139,7 @@ svg { display: block; }
 .choices .thumb {
   position: absolute;
   top: 4px;
-  bottom: 4px;
+  height: 32px;
   left: 0;
   border-radius: 999px;
   background: var(--thumb);
@@ -201,7 +201,7 @@ svg { display: block; }
 }
 .greeting {
   margin: 0;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", Geist, system-ui, sans-serif;
   font-size: clamp(24px, 5vw, 32px);
   font-weight: 500;
@@ -211,6 +211,45 @@ svg { display: block; }
   /* A halo in the background colour keeps it legible over passing animals. */
   text-shadow: 0 0 6px var(--bg), 0 0 24px var(--bg);
 }
+
+.greeting-block { text-align: center; width: min(640px, calc(100vw - 32px)); }
+.greeting-edit {
+  pointer-events: auto;
+  display: inline-block;
+  margin-top: 5px;
+  padding: 4px 9px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--text-soft);
+  font-size: 12px;
+  cursor: pointer;
+}
+.greeting-edit:hover { background: var(--thumb); }
+.name-dialog {
+  width: min(360px, calc(100vw - 32px));
+  box-sizing: border-box;
+  padding: 22px;
+  border: 1px solid var(--glass-rim);
+  border-radius: 18px;
+  color: var(--text);
+  background: #18191f;
+}
+.name-dialog::backdrop { background: rgba(0, 0, 0, 0.55); }
+.name-dialog form { display: grid; gap: 10px; }
+.name-dialog h2 { margin: 0 0 5px; font-size: 18px; }
+.name-dialog label, .name-dialog p { font-size: 13px; }
+.name-dialog p { margin: 0; color: var(--text-soft); }
+.name-dialog input, .name-actions button {
+  padding: 8px 10px;
+  border: 1px solid var(--glass-rim);
+  border-radius: 8px;
+  color: inherit;
+  background: var(--thumb);
+  font: inherit;
+}
+.name-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+.name-actions button { cursor: pointer; }
 
 /* Liquid glass (see .glass), with Dia's layout inside. */
 .composer {

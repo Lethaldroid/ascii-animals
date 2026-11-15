@@ -195,8 +195,8 @@ export class Pen {
    * Exactly one solid cell at (x, y) px: a block of `fill` with `glyph` in `color`, over whatever is
    * there. For small features that must look the same however the animal turns, like a pair of eyes.
    */
-  spot(x: number, y: number, glyph: string, color: RGB, fill: RGB, depth: number) {
-    this.r.spot(x, y, glyph, color, fill, this.fogFor(depth));
+  spot(x: number, y: number, glyph: string, color: RGB, fill: RGB, depth: number, fog = this.fogFor(depth)) {
+    this.r.spot(x, y, glyph, color, fill, fog);
   }
 
   /** Leave something in the trail at (x, y), scaled by the trail knob. */
@@ -229,6 +229,8 @@ export class AsciiRenderer {
 
   private energy = new Float32Array(0);
   private energyTmp = new Float32Array(0);
+  private readonly trailHeads = new Int32Array(ALPHA_LEVELS);
+  private trailNext = new Int32Array(0);
   private trailStyles: string[] = [];
   private hue = hueMatrix(0);
   private hueOn = false;
@@ -314,6 +316,7 @@ export class AsciiRenderer {
     if (this.cols !== prevCols || this.rows !== prevRows) {
       this.energy = new Float32Array(n);
       this.energyTmp = new Float32Array(n);
+      this.trailNext = new Int32Array(n);
       this.cellFlag = new Uint8Array(n);
       this.cellFill = new Uint32Array(n);
       this.cellColor = new Uint32Array(n);
@@ -329,6 +332,11 @@ export class AsciiRenderer {
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.fillStyle = rgb(...this.palette.background);
     g.fillRect(0, 0, W, H);
+    if (W > 0 && H > 0 && this.animal?.paintBackdrop) {
+      g.save();
+      this.animal.paintBackdrop(g, W, H, this.theme);
+      g.restore();
+    }
     const [gr, gg, gb, ga] = this.palette.grid;
     paintGrid(g, W, H, cw, ch, dpr, `rgba(${gr},${gg},${gb},${(ga * this.tuning.grid).toFixed(3)})`);
   }
@@ -407,19 +415,29 @@ export class AsciiRenderer {
   }
 
   private drawTrail(t: number) {
-    const { ctx, cols, cw, ch, energy, cellFlag } = this;
+    const { ctx, cols, cw, ch, energy, cellFlag, trailHeads, trailNext } = this;
     const small = Math.max(2, Math.round(cw * 0.19));
+    trailHeads.fill(-1);
+
+    // Group visible grains by opacity in one scan. Reuse the links each frame.
+    for (let i = 0; i < energy.length; i++) {
+      const e = energy[i];
+      if (e < 0.12 || cellFlag[i] === CELL_SOLID) continue;
+      const col = i % cols;
+      const row = (i / cols) | 0;
+      const twinkle = 0.75 + 0.25 * Math.sin(t * 5 + hash3(col, row, 3) * 40);
+      const level = clamp(Math.floor(e * twinkle * 4 * ALPHA_LEVELS) - 1, 0, ALPHA_LEVELS - 1);
+      trailNext[i] = trailHeads[level];
+      trailHeads[level] = i;
+    }
+
     for (let level = 0; level < ALPHA_LEVELS; level++) {
+      if (trailHeads[level] === -1) continue;
       ctx.fillStyle = this.trailStyles[level];
-      for (let i = 0; i < energy.length; i++) {
-        const e = energy[i];
-        if (e < 0.12 || cellFlag[i] === CELL_SOLID) continue;
+      for (let i = trailHeads[level]; i !== -1; i = trailNext[i]) {
         const col = i % cols;
         const row = (i / cols) | 0;
-        // Each grain twinkles on its own clock.
-        const twinkle = 0.75 + 0.25 * Math.sin(t * 5 + hash3(col, row, 3) * 40);
-        if (clamp(Math.floor(e * twinkle * 4 * ALPHA_LEVELS) - 1, 0, ALPHA_LEVELS - 1) !== level) continue;
-        const size = e > 0.6 ? small + 1 : small;
+        const size = energy[i] > 0.6 ? small + 1 : small;
         ctx.fillRect(Math.round(col * cw + cw * 0.5 - size / 2), Math.round(row * ch + ch * 0.6 - size / 2), size, size);
       }
     }

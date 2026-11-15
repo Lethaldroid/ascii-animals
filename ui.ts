@@ -1,20 +1,56 @@
 /**
  * Page chrome shared by every scene: glass segmented choices and the chat composer.
  */
-/** A greeting by the local time: "Good morning, Stephen" … "Still up, Stephen?" after 10pm. */
-export function greetingFor(name: string, date = new Date()) {
-  const h = date.getHours();
-  if (h >= 5 && h < 12) return `Good morning, ${name}`;
-  if (h >= 12 && h < 17) return `Good afternoon, ${name}`;
-  if (h >= 17 && h < 22) return `Good evening, ${name}`;
-  return `Still up, ${name}?`;
+/** A greeting by the local time, with an optional display name. */
+export function greetingFor(name = "", date = new Date()) {
+  const hour = date.getHours();
+  const time = hour >= 5 && hour < 12 ? "Good morning"
+    : hour >= 12 && hour < 17 ? "Good afternoon"
+    : hour >= 17 && hour < 22 ? "Good evening"
+    : "Still up";
+  return time + (name ? `, ${name}` : "") + (time === "Still up" ? "?" : "");
 }
 
-/** Greet by the time of day, and keep it current if the page stays open. */
-export function mountGreeting(name: string) {
-  const el = document.querySelector<HTMLElement>(".greeting");
-  if (!el) return;
-  const update = () => (el.textContent = greetingFor(name));
+/** Greet by local time and remember the name entered on this device. */
+export function mountGreeting(storageKey: string) {
+  const greeting = document.querySelector<HTMLElement>(".greeting")!;
+  const edit = document.querySelector<HTMLButtonElement>(".greeting-edit")!;
+  const dialog = document.querySelector<HTMLDialogElement>(".name-dialog")!;
+  const form = dialog.querySelector("form")!;
+  const input = form.querySelector("input")!;
+  const cleanName = (value: string) => value.trim().slice(0, input.maxLength);
+  let name = "";
+  try {
+    name = cleanName(localStorage.getItem(storageKey) ?? "");
+  } catch {
+    // The name can still be edited for this visit.
+  }
+
+  const update = () => {
+    greeting.textContent = greetingFor(name);
+    edit.textContent = name ? "Edit name" : "Set name";
+  };
+
+  edit.addEventListener("click", () => {
+    input.value = name;
+    dialog.showModal();
+    input.select();
+  });
+
+  form.querySelector<HTMLButtonElement>("[data-cancel]")!.addEventListener("click", () => dialog.close());
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    name = cleanName(input.value);
+    try {
+      if (name) localStorage.setItem(storageKey, name);
+      else localStorage.removeItem(storageKey);
+    } catch {
+      // Keep the current name in memory when storage is unavailable.
+    }
+    update();
+    dialog.close();
+  });
+
   update();
   setInterval(update, 60_000);
 }

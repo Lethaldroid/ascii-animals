@@ -4,10 +4,6 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>ascii animals</title>
-    <script>
-      // Only Chromium can run an SVG filter inside backdrop-filter; everyone else gets frosted glass.
-      if (/Chrome\//.test(navigator.userAgent)) document.documentElement.classList.add("liquid");
-    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@600&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/page.css" />
@@ -32,7 +28,10 @@
       <!-- Dia's mark, cut out of a screenshot (a concept redesign, not affiliated with Dia). -->
       <div class="masthead">
         <div class="logo" role="img" aria-label="Dia"></div>
-        <h1 class="greeting">Hello, Stephen</h1>
+        <div class="greeting-block">
+          <h1 class="greeting">Hello</h1>
+          <button class="greeting-edit" type="button">Set name</button>
+        </div>
       </div>
       <form class="composer glass" autocomplete="off">
         <div class="composer-field">
@@ -65,6 +64,19 @@
         </div>
       </form>
     </main>
+
+    <dialog class="name-dialog" aria-labelledby="name-title">
+      <form>
+        <h2 id="name-title">Personalize your greeting</h2>
+        <label for="display-name">Display name</label>
+        <input id="display-name" name="displayName" autocomplete="given-name" maxlength="48" autofocus />
+        <p>Leave blank for a greeting without a name.</p>
+        <div class="name-actions">
+          <button type="button" data-cancel>Cancel</button>
+          <button type="submit">Save</button>
+        </div>
+      </form>
+    </dialog>
 
     <script type="module" src="/demo.ts"></script>
   </body>

@@ -12,7 +12,7 @@
  */
 import type { RGB } from "./ink";
 import { angleDiff, clamp, rand } from "./math";
-import type { Pen } from "./renderer";
+import type { Pen, Theme } from "./renderer";
 
 export interface Creature {
   id: number;
@@ -151,6 +151,10 @@ export interface Animal<C extends Creature = Creature> {
   tap?(x: number, y: number, flock: Flock<C>): void;
   /** React to a click; (dx, dy) points away from it and strength fades 1 → 0 with distance. */
   startle?(c: C, dx: number, dy: number, strength: number, flock: Flock<C>): void;
+  /** Upper and lower limits for the creature's center, as fractions of the canvas height. */
+  verticalBand?: readonly [top: number, bottom: number];
+  /** Paint a static scene beneath the grid, in CSS pixels. */
+  paintBackdrop?(ctx: CanvasRenderingContext2D, width: number, height: number, theme: Theme): void;
   /** Draw one creature. */
   draw?(c: C, pen: Pen, flock: Flock<C>): void;
   /** Draw the whole flock at once instead, for animals drawn as a crowd. */
@@ -195,6 +199,7 @@ export class Flock<C extends Creature = Creature> {
     this.height = height;
     this.base = clamp(Math.min(width, height) * 0.2, 80, 190) * this.animal.scale;
     if (first) this.populate(true);
+    else if (this.animal.verticalBand) this.keepInHabitat();
   }
 
   /** Course in radians (screen space, y down). */
@@ -263,6 +268,24 @@ export class Flock<C extends Creature = Creature> {
     }
     this.animal.prepare?.(this, dt);
     for (const c of this.creatures) this.animal.update(c, this, dt);
+    if (this.animal.verticalBand) this.keepInHabitat();
+  }
+
+  private keepInHabitat() {
+    const [top, bottom] = this.animal.verticalBand!;
+    const minY = top * this.height;
+    const maxY = bottom * this.height;
+    for (const c of this.creatures) {
+      if (c.y < minY || c.y > maxY) {
+        c.y = clamp(c.y, minY, maxY);
+        c.vy = 0;
+      }
+    }
+  }
+
+  private randomY() {
+    const [top, bottom] = this.animal.verticalBand ?? [0, 1];
+    return rand(top * this.height, bottom * this.height);
   }
 
   /** Add or remove individuals until the population matches the tuning. */
@@ -277,7 +300,7 @@ export class Flock<C extends Creature = Creature> {
       if (scatter || Math.random() < 0.5) {
         // Seeding (or growing the flock): drop it in anywhere so the screen fills at once.
         c.x = rand(0, this.width);
-        c.y = rand(0, this.height);
+        c.y = this.randomY();
         this.animal.enter?.(c, this);
       }
       this.insert(c);
@@ -321,9 +344,9 @@ export class Flock<C extends Creature = Creature> {
     // Upstream edges: the side the stream comes from, weighted by how much of it crosses each.
     const sideways = H * Math.abs(cos);
     const vertical = W * Math.abs(sin);
-    if (Math.random() * (sideways + vertical) < sideways) {
+    if (this.animal.verticalBand || Math.random() * (sideways + vertical) < sideways) {
       c.x = cos >= 0 ? -m : W + m;
-      c.y = rand(0, H);
+      c.y = this.randomY();
     } else {
       c.x = rand(0, W);
       c.y = sin <= 0 ? H + m : -m;
